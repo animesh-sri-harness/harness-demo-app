@@ -1,0 +1,81 @@
+# Harness CD Pipeline — paste into the YAML editor under Pipelines > demo-cd
+# Replace placeholders:
+#   <your-dockerhub-user>  → your DockerHub username
+#   harness_demo           → your Harness project identifier (if different)
+#   default                → your Harness org identifier (if different)
+
+pipeline:
+  name: demo-cd
+  identifier: demo_cd
+  projectIdentifier: harness_demo
+  orgIdentifier: default
+  variables:
+    - name: targetEnv
+      type: String
+      default: dev
+    - name: notes
+      type: String
+      default: Manual deploy
+  stages:
+    - stage:
+        name: deploy_dev
+        identifier: deploy_dev
+        type: Deployment
+        spec:
+          deploymentType: Kubernetes
+          service:
+            serviceRef: harness_demo_svc
+            serviceInputs:
+              serviceDefinition:
+                type: Kubernetes
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+input>
+                      sources: <+input>
+          environment:
+            environmentRef: dev
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: dev_k8s
+          execution:
+            steps:
+              - step:
+                  type: HarnessApproval
+                  name: Approve_Deploy
+                  identifier: approve_deploy
+                  timeout: 1d
+                  spec:
+                    approvalMessage: |-
+                      Approve deploy of <+pipeline.variables.dockerImage>:<+artifact.tag>
+                      to <+env.name>
+                    includePipelineExecutionHistory: true
+                    approvers:
+                      userGroups:
+                        - account._account_all_users
+                      minimumCount: 1
+                      disallowPipelineExecutor: false
+                    approverInputs: []
+              - step:
+                  name: Rollout Deployment
+                  identifier: rolloutDeployment
+                  type: K8sRollingDeploy
+                  timeout: 10m
+                  spec:
+                    skipDryRun: false
+                    pruningEnabled: false
+            rollbackSteps:
+              - step:
+                  name: Rollback Rollout Deployment
+                  identifier: rollbackRolloutDeployment
+                  type: K8sRollingRollback
+                  timeout: 10m
+                  spec:
+                    pruningEnabled: false
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback

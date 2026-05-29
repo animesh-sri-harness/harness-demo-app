@@ -1,0 +1,135 @@
+# Harness CI Pipeline — paste into the YAML editor under Pipelines > demo-ci
+# Replace placeholders:
+#   <your-dockerhub-user>  → your DockerHub username
+#   harness_demo           → your Harness project identifier (if different)
+#   default                → your Harness org identifier (if different)
+
+pipeline:
+  name: demo-ci
+  identifier: demo_ci
+  projectIdentifier: harness_demo
+  orgIdentifier: default
+  variables:
+    - name: appVersion
+      type: String
+      default: 1.0.<+pipeline.sequenceId>
+    - name: dockerImage
+      type: String
+      default: <your-dockerhub-user>/harness-demo-app
+    - name: severityThreshold
+      type: String
+      default: critical
+  properties:
+    ci:
+      codebase:
+        connectorRef: github_connector
+        repoName: harness-demo-app
+        build: <+input>
+  stages:
+    - stage:
+        name: build_test_scan
+        identifier: build_test_scan
+        type: CI
+        spec:
+          cloneCodebase: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Install_and_Test
+                  identifier: install_and_test
+                  spec:
+                    shell: Sh
+                    command: |-
+                      pip install --upgrade pip
+                      pip install -r requirements-dev.txt
+                      pytest
+                    reports:
+                      type: JUnit
+                      spec:
+                        paths:
+                          - test-results/junit.xml
+              - step:
+                  type: Run
+                  name: Build_Wheel
+                  identifier: build_wheel
+                  spec:
+                    shell: Sh
+                    command: |-
+                      pip install wheel setuptools
+                      python setup.py bdist_wheel
+                      ls -lh dist/
+              - step:
+                  type: Gitleaks
+                  name: Secret_Scan
+                  identifier: secret_scan
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      name: harness-demo-app
+                      type: repository
+                      variant: <+codebase.branch>
+                    advanced:
+                      log:
+                        level: info
+                      fail_on_severity: critical
+              - step:
+                  type: Semgrep
+                  name: SAST_Scan
+                  identifier: sast_scan
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      name: harness-demo-app
+                      type: repository
+                      variant: <+codebase.branch>
+                    advanced:
+                      fail_on_severity: <+pipeline.variables.severityThreshold>
+              - step:
+                  type: AquaTrivy
+                  name: Dependency_Scan
+                  identifier: dependency_scan
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      name: harness-demo-app
+                      type: repository
+                      variant: <+codebase.branch>
+                    advanced:
+                      fail_on_severity: critical
+              - step:
+                  type: BuildAndPushDockerRegistry
+                  name: Build_Push_Image
+                  identifier: build_push_image
+                  spec:
+                    connectorRef: dockerhub_connector
+                    repo: <+pipeline.variables.dockerImage>
+                    tags:
+                      - <+pipeline.variables.appVersion>
+              - step:
+                  type: AquaTrivy
+                  name: Image_Scan
+                  identifier: image_scan
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      name: harness-demo-app-image
+                      type: container
+                      variant: <+pipeline.variables.appVersion>
+                    image:
+                      type: docker_v2
+                      name: <+pipeline.variables.dockerImage>
+                      tag: <+pipeline.variables.appVersion>
+                      connector_ref: dockerhub_connector
+                    advanced:
+                      fail_on_severity: critical

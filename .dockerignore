@@ -1,0 +1,14 @@
+tests/
+test-results/
+*.pyc
+__pycache__/
+.git/
+.gitignore
+*.md
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
