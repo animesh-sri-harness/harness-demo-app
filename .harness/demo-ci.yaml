@@ -7,15 +7,15 @@
 pipeline:
   name: demo-ci
   identifier: demo_ci
-  projectIdentifier: harness_demo
-  orgIdentifier: default
+  projectIdentifier: Test_CI_CD_STO
+  orgIdentifier: Animesh_Org
   variables:
     - name: appVersion
       type: String
       default: 1.0.<+pipeline.sequenceId>
     - name: dockerImage
       type: String
-      default: <your-dockerhub-user>/harness-demo-app
+      default: animeshsri98/harness-demo-app
     - name: severityThreshold
       type: String
       default: critical

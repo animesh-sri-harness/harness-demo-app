@@ -7,8 +7,8 @@
 pipeline:
   name: demo-cd
   identifier: demo_cd
-  projectIdentifier: harness_demo
-  orgIdentifier: default
+  projectIdentifier: Test_CI_CD_STO
+  orgIdentifier: Animesh_Org
   variables:
     - name: targetEnv
       type: String
