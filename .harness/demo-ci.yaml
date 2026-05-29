@@ -1,24 +1,15 @@
-# Harness CI Pipeline — paste into the YAML editor under Pipelines > demo-ci
-# Replace placeholders:
-#   <your-dockerhub-user>  → your DockerHub username
-#   harness_demo           → your Harness project identifier (if different)
-#   default                → your Harness org identifier (if different)
-
 pipeline:
   name: demo-ci
   identifier: demo_ci
   projectIdentifier: Test_CI_CD_STO
   orgIdentifier: Animesh_Org
   variables:
-    - name: appVersion
-      type: String
-      default: 1.0.<+pipeline.sequenceId>
     - name: dockerImage
       type: String
-      default: animeshsri98/harness-demo-app
+      value: animeshsri98/harness-demo-app
     - name: severityThreshold
       type: String
-      default: critical
+      value: critical
   properties:
     ci:
       codebase:
@@ -48,7 +39,7 @@ pipeline:
                     shell: Sh
                     command: |-
                       pip install --upgrade pip
-                      pip install -r requirements-dev.txt
+                      pip install --ignore-installed -r requirements-dev.txt
                       pytest
                     reports:
                       type: JUnit
@@ -62,7 +53,7 @@ pipeline:
                   spec:
                     shell: Sh
                     command: |-
-                      pip install wheel setuptools
+                      pip install --ignore-installed wheel setuptools
                       python setup.py bdist_wheel
                       ls -lh dist/
               - step:
@@ -99,7 +90,7 @@ pipeline:
                   identifier: dependency_scan
                   spec:
                     mode: orchestration
-                    config: default
+                    config: fs
                     target:
                       name: harness-demo-app
                       type: repository
@@ -114,7 +105,7 @@ pipeline:
                     connectorRef: dockerhub_connector
                     repo: <+pipeline.variables.dockerImage>
                     tags:
-                      - <+pipeline.variables.appVersion>
+                      - 1.0.<+pipeline.sequenceId>
               - step:
                   type: AquaTrivy
                   name: Image_Scan
@@ -125,11 +116,11 @@ pipeline:
                     target:
                       name: harness-demo-app-image
                       type: container
-                      variant: <+pipeline.variables.appVersion>
+                      variant: 1.0.<+pipeline.sequenceId>
                     image:
                       type: docker_v2
                       name: <+pipeline.variables.dockerImage>
-                      tag: <+pipeline.variables.appVersion>
+                      tag: 1.0.<+pipeline.sequenceId>
                       connector_ref: dockerhub_connector
                     advanced:
                       fail_on_severity: critical
